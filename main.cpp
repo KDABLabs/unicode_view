@@ -2,6 +2,7 @@
 #include <chrono>
 
 #include "unicode_view"
+#include "util.h"
 
 using namespace std;
 
@@ -28,17 +29,18 @@ enum {
 template <typename T, size_t N>
 void benchMark(const T (&codeUints)[N])
 {
-    using clock = chrono::high_resolution_clock;
+    using clock = chrono::steady_clock;
     auto start = clock::now();
-    uint64_t sum = 0;
     for (int i = 0; i < BENCH_COUNT; ++i) {
         auto view = to_unicode_view(codeUints, N - 1);
         for (auto codePoint : view)
-            sum += codePoint;
-        sum += view.size();
+          escape(&codePoint);
+        auto sz = view.size();
+        escape(&sz);
     }
+    clobber();
     auto stop = clock::now();
-    cout << dec << "Benchmarking " << N - 1 << " code uints of utf" << 8 * sizeof(T) << " took:" << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms " << sum << endl;
+    cout << dec << "Benchmarking " << N - 1 << " code uints of utf" << 8 * sizeof(T) << " took:" << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms " << endl;
 }
 
 int main()

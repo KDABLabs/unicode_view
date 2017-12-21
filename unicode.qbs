@@ -9,6 +9,7 @@ Project {
         files: [
             "main.cpp",
             "unicode_view",
+            "util.h",
         ]
 
         Group {     // Properties for the produced executable
