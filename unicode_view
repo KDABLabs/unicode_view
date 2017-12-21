@@ -1,0 +1,154 @@
+#pragma once
+
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+template <typename T>
+char32_t toUnicodePoint(const T *codeUnit, size_t len, uint8_t &pointLen);
+
+template <>
+inline char32_t toUnicodePoint<char>(const char *codeUnit, size_t len, uint8_t &pointLen)
+{
+    pointLen = 0;
+    if(!len)
+        return -1;
+
+    char32_t res = *codeUnit;
+    while (res & 0x80) {
+        ++pointLen;
+        res <<= 1;
+    }
+    if (pointLen > len)
+        return -1;
+
+    res = *codeUnit & (0x7f >> pointLen);
+    switch (pointLen) {
+    case 0:
+        pointLen = 1;
+        break;
+    case 2:
+        res = (res << 6) | (codeUnit[1] & 0x3f);
+        break;
+    case 3:
+        res = (res << 12) | (uint16_t(codeUnit[1] & 0x3f) << 6) | (codeUnit[2] & 0x3f);
+        break;
+    case 4:
+        res = (res << 18) | (uint32_t(codeUnit[1] & 0x3f) << 12) | (uint16_t(codeUnit[2] & 0x3f) << 6) | (codeUnit[3] & 0x3f);
+        break;
+    default:
+        break;
+    }
+    return res;
+}
+
+template <>
+inline char32_t toUnicodePoint<char16_t>(const char16_t *codeUnit, size_t len, uint8_t &pointLen)
+{
+    pointLen = 0;
+    if(!len)
+        return -1;
+    char32_t res = *codeUnit;
+    if (res - 0xd800 < 2048) {
+        if (len < 2)
+            return -1;
+        res = (res << 10) + codeUnit[1] - 0x35fdc00;
+        pointLen = 2;
+    } else {
+        pointLen = 1;
+    }
+    return res;
+}
+
+template <>
+inline char32_t toUnicodePoint<char32_t>(const char32_t *codeUnit, size_t len, uint8_t &pointLen)
+{
+    pointLen = 0;
+    if(!len)
+        return -1;
+    pointLen = 1;
+    return *codeUnit;
+}
+
+template <typename T>
+size_t strLen(const T *str)
+{
+    size_t res = 0;
+    while(*str++)
+        ++res;
+    return res;
+}
+
+template <typename T>
+class unicode_view
+{
+    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4);
+public:
+    class iterator : public std::iterator<std::input_iterator_tag, T> {
+    public:
+        iterator(const T *codeUnit, const T *lastCodeUnit)
+            : m_codeUnitCur(codeUnit)
+            , m_codeUnitEnd(lastCodeUnit)
+        {}
+
+        iterator& operator++()
+        {
+            if (!m_pointLen)
+                toUnicodePoint(m_codeUnitCur, m_codeUnitEnd - m_codeUnitCur, m_pointLen);
+            m_codeUnitCur += m_pointLen;
+            m_pointLen = 0;
+            return *this;
+        }
+        iterator operator++(int) {iterator res = *this; ++(*this); return res;}
+        bool operator==(iterator other) const {return m_codeUnitCur == other.m_codeUnitCur;}
+        bool operator!=(iterator other) const {return !(*this == other);}
+        char32_t operator *() const
+        {
+            return toUnicodePoint(m_codeUnitCur, m_codeUnitEnd - m_codeUnitCur, m_pointLen);
+        }
+
+    private:
+        const T *m_codeUnitCur;
+        const T *m_codeUnitEnd;
+        mutable uint8_t m_pointLen = 0;
+    };
+    using const_iterator = iterator;
+//    using reverse_iterator = std::reverse_iterator<iterator>;
+
+    unicode_view(const T* codeUints, ssize_t len = -1)
+        : m_codeUnitStart(codeUints)
+        , m_codeUnitEnd(m_codeUnitStart + (len >= 0 ? len : strLen(codeUints)))
+    {}
+
+    template <size_t N>
+    unicode_view(const T (&codeUints)[N])
+        : unicode_view(codeUints, N - 1)
+    {}
+
+    inline iterator begin() const
+    {
+        return iterator{m_codeUnitStart, m_codeUnitEnd};
+    }
+    inline iterator end() const
+    {
+        return iterator{m_codeUnitEnd, m_codeUnitEnd};
+    }
+
+    inline size_t size() const { if (!m_size) m_size = std::distance(begin(), end()); return m_size; }
+
+private:
+    const T *m_codeUnitStart;
+    const T *m_codeUnitEnd;
+    mutable size_t m_size= 0;
+};
+
+template <typename T>
+inline unicode_view<T> to_unicode_view(const T *t, ssize_t len = -1)
+{
+    return unicode_view<T>(t, len);
+}
+
+template <typename T, size_t N>
+inline unicode_view<T> to_unicode_view(const T (&codeUints)[N])
+{
+    return unicode_view<T>(codeUints, N - 1);
+}
