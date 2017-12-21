@@ -38,7 +38,7 @@ void benchMark(const T (&codeUints)[N])
         sum += view.size();
     }
     auto stop = clock::now();
-    cout << dec << "Benchmarking " << N - 1 << " code uints of utf" << 8 * sizeof(T) << " took:" << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms" << endl;
+    cout << dec << "Benchmarking " << N - 1 << " code uints of utf" << 8 * sizeof(T) << " took:" << chrono::duration_cast<chrono::milliseconds>(stop - start).count() << "ms " << sum << endl;
 }
 
 int main()
