@@ -129,7 +129,10 @@ public:
     unicode_view(const T* codeUints, ssize_t len = -1)
         : m_codeUnitStart(codeUints)
         , m_codeUnitEnd(m_codeUnitStart + (len >= 0 ? len : strLen(codeUints)))
-    {}
+    {
+        if (sizeof(T) == 4)
+            m_size = m_codeUnitEnd - m_codeUnitStart;
+    }
 
     template <size_t N>
     unicode_view(const T (&codeUints)[N])
