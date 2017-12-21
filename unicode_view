@@ -4,11 +4,7 @@
 #include <cstdint>
 #include <iterator>
 
-template <typename T>
-char32_t toUnicodePoint(const T *codeUnit, const T *lastCodeUnit, const T *&nextCodeUnit);
-
-template <>
-inline char32_t toUnicodePoint<char>(const char *codeUnit, const char *lastCodeUnit, const char *&nextCodeUnit)
+inline char32_t toUnicodePoint(const char *codeUnit, const char *lastCodeUnit, const char *&nextCodeUnit)
 {
     if (codeUnit == lastCodeUnit) {
         nextCodeUnit = codeUnit;
@@ -48,8 +44,7 @@ inline char32_t toUnicodePoint<char>(const char *codeUnit, const char *lastCodeU
     return res;
 }
 
-template <>
-inline char32_t toUnicodePoint<char16_t>(const char16_t *codeUnit, const char16_t *lastCodeUnit, const char16_t *&nextCodeUnit)
+inline char32_t toUnicodePoint(const char16_t *codeUnit, const char16_t *lastCodeUnit, const char16_t *&nextCodeUnit)
 {
     if (codeUnit == lastCodeUnit) {
         nextCodeUnit = codeUnit;
@@ -69,8 +64,7 @@ inline char32_t toUnicodePoint<char16_t>(const char16_t *codeUnit, const char16_
     return res;
 }
 
-template <>
-inline char32_t toUnicodePoint<char32_t>(const char32_t *codeUnit, const char32_t *lastCodeUnit, const char32_t *&nextCodeUnit)
+inline char32_t toUnicodePoint(const char32_t *codeUnit, const char32_t *lastCodeUnit, const char32_t *&nextCodeUnit)
 {
     if (codeUnit == lastCodeUnit) {
         nextCodeUnit = codeUnit;
