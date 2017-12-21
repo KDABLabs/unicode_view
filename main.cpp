@@ -46,11 +46,11 @@ int main()
     char     str8[]  =  "€Hello𐐷7バイト以上の文字は規定されないため、0xFE、0xFF (BOM) に0xFEと0xFFを使用するUTF-16やUTF-32が、UTF-8と混同されることはない。UTF-16 is specified in the latest versions of both the international standard ISO/IEC 10646 and the Unicode Standard.";
     char16_t str16[] = u"€Hello𐐷7バイト以上の文字は規定されないため、0xFE、0xFF (BOM) に0xFEと0xFFを使用するUTF-16やUTF-32が、UTF-8と混同されることはない。UTF-16 is specified in the latest versions of both the international standard ISO/IEC 10646 and the Unicode Standard.";
     char32_t str32[] = U"€Hello𐐷7バイト以上の文字は規定されないため、0xFE、0xFF (BOM) に0xFEと0xFFを使用するUTF-16やUTF-32が、UTF-8と混同されることはない。UTF-16 is specified in the latest versions of both the international standard ISO/IEC 10646 and the Unicode Standard.";
-    const char *_str8 = "€Hello𐐷";
+    const char     *_str8  =  "€Hello𐐷";
     const char16_t *_str16 = u"€Hello𐐷";
     const char32_t *_str32 = U"€Hello𐐷";
 
-    cout << sizeof str8 << " " <<  sizeof str16 << " " <<  sizeof str32 << endl << hex;
+    cout << "Size in memory " << sizeof str8 << " " <<  sizeof str16 << " " <<  sizeof str32 << endl << hex;
 
     cout << "Test unicode_view" << endl;
     printCodePoints(str8);
