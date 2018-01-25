@@ -1,4 +1,5 @@
-#pragma once
+#ifndef KDAB_UNICODE_VIEW
+#define KDAB_UNICODE_VIEW
 
 #include <algorithm>
 #include <cstdint>
@@ -161,3 +162,5 @@ inline unicode_view<T> to_unicode_view(const T (&codeUints)[N])
 {
     return unicode_view<T>(codeUints, N - 1);
 }
+
+#endif // KDAB_UNICODE_VIEW
