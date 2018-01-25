@@ -86,7 +86,7 @@ size_t strLen(const T *str)
 template <typename T>
 class unicode_view
 {
-    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4);
+    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4, "T does not have the right size");
 public:
     class iterator : public std::iterator<std::input_iterator_tag, T> {
     public:
