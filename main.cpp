@@ -9,7 +9,7 @@ using namespace std;
 template <typename T>
 void printCodePoints(const T *codeUints)
 {
-    for (auto codePoint : to_unicode_view(codeUints))
+    for (auto codePoint : kdab::to_unicode_view(codeUints))
         cout << codePoint << " ";
     cout << endl;
 }
@@ -17,7 +17,7 @@ void printCodePoints(const T *codeUints)
 template <typename T, size_t N>
 void printCodePoints(const T (&codeUints)[N])
 {
-    for (auto codePoint : to_unicode_view(codeUints, N - 1))
+    for (auto codePoint : kdab::to_unicode_view(codeUints, N - 1))
         cout << codePoint << " ";
     cout << endl;
 }
@@ -32,7 +32,7 @@ void benchMark(const T (&codeUints)[N])
     using clock = chrono::steady_clock;
     auto start = clock::now();
     for (int i = 0; i < BENCH_COUNT; ++i) {
-        auto view = to_unicode_view(codeUints, N - 1);
+        auto view = kdab::to_unicode_view(codeUints, N - 1);
         for (auto codePoint : view)
           escape(&codePoint);
         auto sz = view.size();
