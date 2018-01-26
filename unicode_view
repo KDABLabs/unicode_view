@@ -5,6 +5,10 @@
 #include <cstdint>
 #include <iterator>
 
+namespace kdab {
+
+namespace detail {
+
 inline char32_t toUnicodePoint(const char *codeUnit, const char *lastCodeUnit, const char *&nextCodeUnit)
 {
     if (codeUnit == lastCodeUnit) {
@@ -76,13 +80,15 @@ inline char32_t toUnicodePoint(const char32_t *codeUnit, const char32_t *lastCod
 }
 
 template <typename T>
-size_t strLen(const T *str)
+size_t strlen(const T *str)
 {
     size_t res = 0;
     while(*str++)
         ++res;
     return res;
 }
+
+} // namespace detail
 
 template <typename T>
 class unicode_view
@@ -95,13 +101,13 @@ public:
             : m_codeUnitCur(codeUnit)
             , m_codeUnitEnd(lastCodeUnit)
         {
-            m_value = toUnicodePoint(m_codeUnitCur, m_codeUnitEnd, m_codeUnitNext);
+            m_value = detail::toUnicodePoint(m_codeUnitCur, m_codeUnitEnd, m_codeUnitNext);
         }
 
         iterator& operator++()
         {
             m_codeUnitCur = m_codeUnitNext;
-            m_value = toUnicodePoint(m_codeUnitCur, m_codeUnitEnd, m_codeUnitNext);
+            m_value = detail::toUnicodePoint(m_codeUnitCur, m_codeUnitEnd, m_codeUnitNext);
             return *this;
         }
         iterator operator++(int) {iterator res = *this; ++(*this); return res;}
@@ -123,7 +129,7 @@ public:
 
     unicode_view(const T* codeUints, ssize_t len = -1)
         : m_codeUnitStart(codeUints)
-        , m_codeUnitEnd(m_codeUnitStart + (len >= 0 ? len : strLen(codeUints)))
+        , m_codeUnitEnd(m_codeUnitStart + (len >= 0 ? len : detail::strlen(codeUints)))
     {
         if (sizeof(T) == 4)
             m_size = m_codeUnitEnd - m_codeUnitStart;
@@ -162,5 +168,7 @@ inline unicode_view<T> to_unicode_view(const T (&codeUints)[N])
 {
     return unicode_view<T>(codeUints, N - 1);
 }
+
+} // namespace kdab
 
 #endif // KDAB_UNICODE_VIEW
