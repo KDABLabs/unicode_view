@@ -83,7 +83,7 @@ template <typename T>
 size_t strlen(const T *str)
 {
     size_t res = 0;
-    while(*str++)
+    while (*str++)
         ++res;
     return res;
 }
@@ -159,23 +159,25 @@ public:
     template <size_t N>
     unicode_view(const T (&codeUints)[N])
         : unicode_view(codeUints, N - 1)
-    {}
+    {
+    }
 
-    inline iterator begin() const
+    iterator begin() const
     {
         return iterator{m_codeUnitStart, m_codeUnitEnd};
     }
-    inline iterator end() const
+
+    iterator end() const
     {
         return iterator{m_codeUnitEnd, m_codeUnitEnd};
     }
 
-    inline size_t size() const { if (!m_size) m_size = std::distance(begin(), end()); return m_size; }
+    size_t size() const { if (!m_size) m_size = std::distance(begin(), end()); return m_size; }
 
 private:
     const T *m_codeUnitStart;
     const T *m_codeUnitEnd;
-    mutable size_t m_size= 0;
+    mutable size_t m_size = 0;
 };
 
 template <typename T>
