@@ -110,15 +110,30 @@ public:
             m_value = detail::toUnicodePoint(m_codeUnitCur, m_codeUnitEnd, m_codeUnitNext);
         }
 
-        iterator& operator++()
+        iterator &operator++()
         {
             m_codeUnitCur = m_codeUnitNext;
             m_value = detail::toUnicodePoint(m_codeUnitCur, m_codeUnitEnd, m_codeUnitNext);
             return *this;
         }
-        iterator operator++(int) {iterator res = *this; ++(*this); return res;}
-        bool operator==(iterator other) const {return m_codeUnitCur == other.m_codeUnitCur;}
-        bool operator!=(iterator other) const {return !(*this == other);}
+
+        iterator operator++(int)
+        {
+            iterator res = *this;
+            ++(*this);
+            return res;
+        }
+
+        bool operator==(iterator other) const
+        {
+            return m_codeUnitCur == other.m_codeUnitCur;
+        }
+
+        bool operator!=(iterator other) const
+        {
+            return !(*this == other);
+        }
+
         value_type operator *() const
         {
             return m_value;
