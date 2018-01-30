@@ -1,9 +1,13 @@
 #ifndef KDAB_UNICODE_VIEW
 #define KDAB_UNICODE_VIEW
 
+#include <utility>
+#include <memory>
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
+#include <type_traits>
+#include <cassert>
 
 namespace kdab {
 
@@ -143,7 +147,7 @@ public:
         const T *m_codeUnitCur;
         const T *m_codeUnitNext;
         const T *m_codeUnitEnd;
-        char32_t m_value;
+        value_type m_value;
     };
     using const_iterator = iterator;
 //    using reverse_iterator = std::reverse_iterator<iterator>;
@@ -179,6 +183,317 @@ private:
     const T *m_codeUnitEnd;
     mutable size_t m_size = 0;
 };
+
+namespace v2 {
+
+namespace detail {
+
+// TODO: or maybe is_convertible with pointers.
+template <typename Iterator>
+struct IsInputIterator : std::is_base_of<std::input_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>
+{};
+
+// Is Iterator suitable for iterating over Unicode code units?
+template <typename Iterator>
+struct IsUnicodeCodeUnitIterator : std::integral_constant<bool,
+        std::is_same<typename std::iterator_traits<Iterator>::value_type, char>::value
+        || std::is_same<typename std::iterator_traits<Iterator>::value_type, char16_t>::value
+        || std::is_same<typename std::iterator_traits<Iterator>::value_type, char32_t>::value
+        >
+{};
+
+
+constexpr char32_t default_replacement_character = 0xFFFD;
+constexpr char32_t maximum_unicode_code_point = 0x10FFFF;
+
+constexpr bool is_surrogate_code_point(char32_t code_point) noexcept
+{
+    return (code_point >= 0xD800 && code_point <= 0xDFFF);
+}
+
+constexpr bool is_low_surrogate(char16_t code_unit) noexcept
+{
+    return (code_unit & 0xFC00) == 0xDC00;
+}
+
+constexpr bool is_high_surrogate(char16_t code_unit) noexcept
+{
+    return (code_unit & 0xFC00) == 0xD800;
+}
+
+constexpr bool is_legal_code_point(char32_t code_point) noexcept
+{
+    return !is_surrogate_code_point(code_point) && code_point <= maximum_unicode_code_point;
+}
+
+template <typename CodeUnitType, char32_t DecodingFailure>
+struct safe_unicode_decoder
+{
+};
+
+template<char32_t DecodingFailure>
+struct safe_unicode_decoder<char, DecodingFailure>
+{
+    using code_unit = unsigned char;
+
+    static constexpr bool is_continuation(code_unit c)
+    {
+        return (c & 0xC0) == 0x80;
+    }
+
+    template <typename Iterator>
+    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next) // TODO need to review exception safety...
+    {
+        if (current == end) {
+            next = current;
+            return DecodingFailure;
+        }
+
+        code_unit cu = *current;
+        ++current;
+        next = current;
+
+        int remaining_code_length = 0;
+
+        if (cu < 0x80) { // TODO: LIKELY
+            // TODO: this can be optimized further. no need of extra checks below, just return out right
+            remaining_code_length = 0;
+        } else if (cu < 0xC0) {
+            // unexpected continuation byte, error
+            assert(is_continuation(cu));
+            return DecodingFailure;
+        } else if (cu < 0xE0) {
+            remaining_code_length = 1;
+            cu &= 0x1F;
+        } else if (cu < 0xF0) {
+            remaining_code_length = 2;
+            cu &= 0x0F;
+        } else if (cu < 0xF5) {
+            remaining_code_length = 3;
+            cu &= 0x07;
+        } else {
+            // no UTF-8 sequence can start with 0xF5, as that would decode above U+10FFFF
+            return DecodingFailure;
+        }
+
+        // TODO: add early check that we have enough, from current to end,
+        // if the iterator allows for that (forward iterators)
+
+        char32_t result = cu;
+
+        // TODO: hoping that the compiler can unroll this, given that remaining_code_length is in a short range.
+        assert(remaining_code_length >= 0);
+        assert(remaining_code_length < 4);
+
+        while (remaining_code_length > 0) {
+            if (current == end) {
+                return DecodingFailure;
+            }
+            cu = *current;
+            ++current;
+            next = current;
+
+            if (!is_continuation(cu)) {
+                return DecodingFailure;
+            }
+
+            result <<= 6;
+            result |= (cu & 0x3f);
+
+            --remaining_code_length;
+        }
+
+        // TODO: check that the sequence isn't overlong
+
+        if (!is_legal_code_point(result)) {
+            return DecodingFailure;
+        }
+
+        // success
+        return result;
+    }
+};
+
+template <char32_t DecodingFailure>
+struct safe_unicode_decoder<char16_t, DecodingFailure>
+{
+    using code_unit = char16_t;
+
+    template <typename Iterator>
+    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    {
+        if (current == end) {
+            next = current;
+            return DecodingFailure;
+        }
+
+        code_unit cu = *current;
+        ++current;
+        next = current;
+
+        char32_t result = cu;
+
+        if (is_high_surrogate(cu)) { // UNLIKELY
+            if (current == end) {
+                return DecodingFailure;
+            }
+
+            cu = *current;
+            ++current;
+            next = current;
+
+            if (!is_low_surrogate(cu)) { // UNLIKELY
+                return DecodingFailure;
+            }
+
+            result <<= 10;
+            result += cu;
+            result -= 0x35FDC00;
+        } else if (is_low_surrogate(cu)) { // UNLIKELY
+            return DecodingFailure;
+        }
+
+        if (!is_legal_code_point(result)) {
+            return DecodingFailure;
+        }
+
+        return result;
+    }
+};
+
+template <char32_t DecodingFailure>
+struct safe_unicode_decoder<char32_t, DecodingFailure>
+{
+    using code_unit = char32_t;
+
+    template <typename Iterator>
+    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    {
+        if (current == end) {
+            next = current;
+            return DecodingFailure;
+        }
+
+        code_unit cu = *current;
+        ++current;
+        next = current;
+
+        char32_t result = cu;
+
+        if (!is_legal_code_point(result)) {
+            return DecodingFailure;
+        }
+
+        return result;
+    }
+};
+
+}
+
+
+
+template <typename Iterator,
+          typename UnicodeDecoder = detail::safe_unicode_decoder<typename std::iterator_traits<Iterator>::value_type, detail::default_replacement_character>>
+class unicode_view
+{
+    static_assert(detail::IsInputIterator<Iterator>::value, "Iterator must be an input iterator");
+    static_assert(detail::IsUnicodeCodeUnitIterator<Iterator>::value, "Iterator must yield char, char16_t or char32_t. Use an adaptor if it yield something else.");
+
+public:
+    constexpr explicit unicode_view(Iterator begin, Iterator end)
+        : m_begin(std::move(begin))
+        , m_end(std::move(end))
+    {
+    }
+
+    class iterator
+    {
+    public:
+        using iterator_category = std::input_iterator_tag; // actually, it depends on the underlying iterator...? probably never random access, though.
+        using value_type = char32_t;
+        using difference_type = std::ptrdiff_t;
+        using pointer = char32_t *;
+        using reference = char32_t &;
+
+        constexpr explicit iterator()
+            : m_pos()
+            , m_end()
+            , m_next()
+            , m_value()
+        {
+        }
+
+        constexpr explicit iterator(Iterator begin, Iterator end)
+            : m_pos(std::move(begin))
+            , m_end(std::move(end))
+            , m_next()
+            , m_value()
+        {
+            m_value = UnicodeDecoder::advance(m_pos, m_end, m_next);
+        }
+
+        constexpr iterator &operator++()
+        {
+            m_pos = m_next;
+            m_value = UnicodeDecoder::advance(m_pos, m_end, m_next);
+            return *this;
+        }
+
+        constexpr iterator operator++(int)
+        {
+            iterator copy = *this;
+            ++(*this);
+            return copy;
+        }
+
+        // TODO: backwards iteration?
+
+        constexpr value_type operator*() const noexcept
+        {
+            return m_value;
+        }
+
+        constexpr friend bool operator==(const iterator &lhs, const iterator &rhs)
+        {
+            return lhs.m_pos == rhs.m_pos;
+        }
+
+        constexpr friend bool operator!=(const iterator &lhs, const iterator &rhs)
+        {
+            return !(lhs == rhs);
+        }
+
+    private:
+        Iterator m_pos;
+        Iterator m_end;
+        Iterator m_next;
+        value_type m_value;
+    };
+
+    using const_iterator = iterator;
+
+    constexpr iterator begin() const { return iterator(m_begin, m_end); }
+    constexpr iterator end() const { return iterator(m_end, m_end); }
+    constexpr const_iterator cbegin() const { return begin(); }
+    constexpr const_iterator cend() const { return end(); }
+
+    // TODO: reverse iteration?
+
+    // size()?
+
+private:
+    Iterator m_begin;
+    Iterator m_end;
+};
+
+template <typename Iterator>
+auto make_unicode_view(const Iterator &begin, const Iterator &end)
+{
+    return unicode_view<Iterator>(begin, end);
+}
+
+}
+
 
 template <typename T>
 inline unicode_view<T> to_unicode_view(const T *t, ssize_t len = -1)
