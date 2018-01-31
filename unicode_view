@@ -130,7 +130,7 @@ struct safe_unicode_decoder<char, DecodingFailure>
 
         // TODO: check that the sequence isn't overlong
 
-        if (!is_legal_code_point(result)) {
+        if (!is_legal_code_point(result)) { // UNLIKELY
             return DecodingFailure;
         }
 
@@ -178,7 +178,7 @@ struct safe_unicode_decoder<char16_t, DecodingFailure>
             return DecodingFailure;
         }
 
-        if (!is_legal_code_point(result)) {
+        if (!is_legal_code_point(result)) { // UNLIKELY
             return DecodingFailure;
         }
 
@@ -205,7 +205,7 @@ struct safe_unicode_decoder<char32_t, DecodingFailure>
 
         char32_t result = cu;
 
-        if (!is_legal_code_point(result)) {
+        if (!is_legal_code_point(result)) { // UNLIKELY
             return DecodingFailure;
         }
 
