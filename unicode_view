@@ -56,7 +56,7 @@ struct safe_unicode_decoder
 {
 };
 
-template<char32_t DecodingFailure>
+template <char32_t DecodingFailure>
 struct safe_unicode_decoder<char, DecodingFailure>
 {
     using code_unit = unsigned char;
@@ -111,8 +111,8 @@ struct safe_unicode_decoder<char, DecodingFailure>
         char32_t result = cu;
 
         // TODO: hoping that the compiler can unroll this, given that remaining_code_length is in a short range.
-        assert(remaining_code_length >= 0);
-        assert(remaining_code_length < 4);
+        assert(remaining_code_length >= 0); // ASSUME
+        assert(remaining_code_length < 4); // ASSUME
 
         while (remaining_code_length > 0) {
             if (current == end) {
@@ -219,9 +219,7 @@ struct safe_unicode_decoder<char32_t, DecodingFailure>
     }
 };
 
-}
-
-
+} // namespace detail
 
 template <typename Iterator,
           typename UnicodeDecoder = detail::safe_unicode_decoder<typename std::iterator_traits<Iterator>::value_type, detail::default_replacement_character>>
@@ -309,8 +307,6 @@ public:
     constexpr const_iterator cend() const { return end(); }
 
     // TODO: reverse iteration?
-
-    // size()?
 
 private:
     Iterator m_begin;
