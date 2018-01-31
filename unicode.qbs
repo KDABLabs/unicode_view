@@ -4,17 +4,28 @@ Project {
     minimumQbsVersion: "1.7.1"
 
     CppApplication {
+        name: "manualtest"
         consoleApplication: true
         cpp.cxxLanguageVersion: "c++14"
         files: [
-            "main.cpp",
             "unicode_view",
-            "util.h",
+            "main.cpp",
         ]
 
         Group {     // Properties for the produced executable
             fileTagsFilter: "application"
             qbs.install: true
         }
+    }
+
+    CppApplication {
+        name: "benchmark"
+        consoleApplication: true
+        cpp.cxxLanguageVersion: "c++14"
+        files: [
+            "benchmark_util.h",
+            "unicode_view",
+            "benchmark.cpp"
+        ]
     }
 }

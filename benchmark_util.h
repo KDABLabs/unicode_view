@@ -30,8 +30,8 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef BENCH_QT_UTIL_H
-#define BENCH_QT_UTIL_H
+#ifndef BENCHMARK_UTIL_H
+#define BENCHMARK_UTIL_H
 
 // source: https://www.youtube.com/watch?v=nXaxk27zwlk
 inline void escape(void *p)
@@ -49,4 +49,4 @@ inline void clobber()
     asm volatile("" : : : "memory");
 }
 
-#endif
+#endif // BENCHMARK_UTIL_H
