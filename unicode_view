@@ -79,6 +79,7 @@ struct safe_unicode_decoder<char, DecodingFailure>
         next = current;
 
         int remaining_code_length = 0;
+        char32_t minimum_code_point = 0; // to detect overlong sequences
 
         if (cu < 0x80) { // TODO: LIKELY
             // TODO: this can be optimized further. no need of extra checks below, just return out right
@@ -89,15 +90,18 @@ struct safe_unicode_decoder<char, DecodingFailure>
             return DecodingFailure;
         } else if (cu < 0xE0) {
             remaining_code_length = 1;
+            minimum_code_point = 0x0080;
             cu &= 0x1F;
         } else if (cu < 0xF0) {
             remaining_code_length = 2;
+            minimum_code_point = 0x0800;
             cu &= 0x0F;
         } else if (cu < 0xF5) {
             remaining_code_length = 3;
+            minimum_code_point = 0x10000;
             cu &= 0x07;
         } else {
-            // no UTF-8 sequence can start with 0xF5, as that would decode above U+10FFFF
+            // no UTF-8 sequence can start with a code unit >= 0xF5, as that would decode above U+10FFFF
             return DecodingFailure;
         }
 
@@ -128,7 +132,9 @@ struct safe_unicode_decoder<char, DecodingFailure>
             --remaining_code_length;
         }
 
-        // TODO: check that the sequence isn't overlong
+        if (result < minimum_code_point) { // UNLIKELY
+            return DecodingFailure;
+        }
 
         if (!is_legal_code_point(result)) { // UNLIKELY
             return DecodingFailure;
