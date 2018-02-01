@@ -219,6 +219,111 @@ struct safe_unicode_decoder<char32_t, DecodingFailure>
     }
 };
 
+template <typename CodeUnitType>
+struct trusted_unicode_decoder
+{
+};
+
+template <>
+struct trusted_unicode_decoder<char>
+{
+    using code_unit = char;
+
+    template <typename Iterator>
+    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    {
+        assert(current != end);
+
+        code_unit cu = *current;
+        ++current;
+        next = current;
+
+        int remaining_code_length = 0;
+
+        if (cu < 0x80) { // TODO: LIKELY
+            char32_t result = cu;
+            return result;
+        } else if (cu < 0xE0) {
+            remaining_code_length = 1;
+            cu &= 0x1F;
+        } else if (cu < 0xF0) {
+            remaining_code_length = 2;
+            cu &= 0x0F;
+        } else {
+            remaining_code_length = 3;
+            cu &= 0x07;
+        }
+
+        char32_t result = cu;
+
+        // TODO: hoping that the compiler can unroll this, given that remaining_code_length is in a short range.
+        assert(remaining_code_length > 0); // ASSUME
+        assert(remaining_code_length < 4); // ASSUME
+
+        while (remaining_code_length > 0) {
+            cu = *current;
+            ++current;
+            next = current;
+
+            result <<= 6;
+            result |= (cu & 0x3f);
+
+            --remaining_code_length;
+        }
+
+        // success
+        return result;
+    }
+};
+
+template <>
+struct trusted_unicode_decoder<char16_t>
+{
+    using code_unit = char16_t;
+
+    template <typename Iterator>
+    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    {
+        assert(current != end);
+        code_unit cu = *current;
+        ++current;
+        next = current;
+
+        char32_t result = cu;
+
+        if (is_high_surrogate(cu)) { // UNLIKELY
+            cu = *current;
+            ++current;
+            next = current;
+
+            result <<= 10;
+            result += cu;
+            result -= 0x35FDC00;
+        }
+
+        return result;
+    }
+};
+
+template <>
+struct trusted_unicode_decoder<char32_t>
+{
+    using code_unit = char32_t;
+
+    template <typename Iterator>
+    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    {
+        assert(current != end);
+
+        code_unit cu = *current;
+        ++current;
+        next = current;
+
+        char32_t result = cu;
+        return result;
+    }
+};
+
 } // namespace detail
 
 template <typename Iterator,
