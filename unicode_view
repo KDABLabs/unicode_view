@@ -332,8 +332,7 @@ struct trusted_unicode_decoder<char32_t> : decoder_helper<char32_t>
 
 } // namespace detail
 
-template <typename Iterator,
-          typename UnicodeDecoder = detail::safe_unicode_decoder<typename std::iterator_traits<Iterator>::value_type, detail::default_replacement_character>>
+template <typename UnicodeDecoder, typename Iterator>
 class unicode_view
 {
     static_assert(detail::IsInputIterator<Iterator>::value, "Iterator must be an input iterator");
@@ -441,10 +440,22 @@ private:
     Iterator m_end;
 };
 
-template <typename Iterator>
+template <typename UnicodeDecoder, typename Iterator>
 auto make_unicode_view(const Iterator &begin, const Iterator &end)
 {
-    return unicode_view<Iterator>(begin, end);
+    return unicode_view<UnicodeDecoder, Iterator>(begin, end);
+}
+
+template <typename Iterator>
+auto make_safe_unicode_view(const Iterator &begin, const Iterator &end)
+{
+    return make_unicode_view<detail::safe_unicode_decoder<typename std::iterator_traits<Iterator>::value_type, detail::default_replacement_character>>(begin, end);
+}
+
+template <typename Iterator>
+auto make_trusted_unicode_view(const Iterator &begin, const Iterator &end)
+{
+    return make_unicode_view<detail::trusted_unicode_decoder<typename std::iterator_traits<Iterator>::value_type>>(begin, end);
 }
 
 } // namespace kdab

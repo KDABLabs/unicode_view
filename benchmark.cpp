@@ -13,7 +13,7 @@ void benchMark(const T *codeUnits)
 {
     const auto length = std::char_traits<T>::length(codeUnits);
     using clock = std::chrono::steady_clock;
-    auto view = kdab::make_unicode_view(codeUnits, codeUnits + length);
+    auto view = kdab::make_safe_unicode_view(codeUnits, codeUnits + length);
 
     auto start = clock::now();
     for (int i = 0; i < BENCH_COUNT; ++i) {

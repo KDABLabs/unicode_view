@@ -6,7 +6,11 @@
 template <typename T>
 void printCodePoints(const T *codeUnits)
 {
-    for (auto codePoint : kdab::make_unicode_view(codeUnits, codeUnits + std::char_traits<T>::length(codeUnits)))
+    for (auto codePoint : kdab::make_safe_unicode_view(codeUnits, codeUnits + std::char_traits<T>::length(codeUnits)))
+        std::cout << codePoint << " ";
+    std::cout << std::endl;
+
+    for (auto codePoint : kdab::make_trusted_unicode_view(codeUnits, codeUnits + std::char_traits<T>::length(codeUnits)))
         std::cout << codePoint << " ";
     std::cout << std::endl;
 }
