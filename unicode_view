@@ -51,32 +51,40 @@ constexpr bool is_legal_code_point(char32_t code_point) noexcept
     return !is_surrogate_code_point(code_point) && code_point <= maximum_unicode_code_point;
 }
 
+template <typename CodeUnitType>
+struct decoder_helper
+{
+    using code_unit = CodeUnitType;
+
+    template <typename Iterator>
+    static constexpr code_unit fetch_and_advance(Iterator &current, Iterator &next)
+    {
+        code_unit cu = *current;
+        ++current;
+        next = current;
+        return cu;
+    }
+};
+
 template <typename CodeUnitType, char32_t DecodingFailure>
 struct safe_unicode_decoder
 {
 };
 
 template <char32_t DecodingFailure>
-struct safe_unicode_decoder<char, DecodingFailure>
+struct safe_unicode_decoder<char, DecodingFailure> : decoder_helper<unsigned char>
 {
-    using code_unit = unsigned char;
-
     static constexpr bool is_continuation(code_unit c)
     {
         return (c & 0xC0) == 0x80;
     }
 
     template <typename Iterator>
-    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next) // TODO need to review exception safety...
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next) // TODO need to review exception safety...
     {
-        if (current == end) {
-            next = current;
-            return DecodingFailure;
-        }
+        assert(current != end);
 
-        code_unit cu = *current;
-        ++current;
-        next = current;
+        code_unit cu = fetch_and_advance(current, next);
 
         int remaining_code_length = 0;
         char32_t minimum_code_point = 0; // to detect overlong sequences
@@ -118,9 +126,8 @@ struct safe_unicode_decoder<char, DecodingFailure>
             if (current == end) {
                 return DecodingFailure;
             }
-            cu = *current;
-            ++current;
-            next = current;
+
+            cu = fetch_and_advance(current, next);
 
             if (!is_continuation(cu)) {
                 return DecodingFailure;
@@ -146,21 +153,14 @@ struct safe_unicode_decoder<char, DecodingFailure>
 };
 
 template <char32_t DecodingFailure>
-struct safe_unicode_decoder<char16_t, DecodingFailure>
+struct safe_unicode_decoder<char16_t, DecodingFailure> : decoder_helper<char16_t>
 {
-    using code_unit = char16_t;
-
     template <typename Iterator>
-    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
     {
-        if (current == end) {
-            next = current;
-            return DecodingFailure;
-        }
+        assert(current != end);
 
-        code_unit cu = *current;
-        ++current;
-        next = current;
+        code_unit cu = fetch_and_advance(current, next);
 
         char32_t result = cu;
 
@@ -193,21 +193,14 @@ struct safe_unicode_decoder<char16_t, DecodingFailure>
 };
 
 template <char32_t DecodingFailure>
-struct safe_unicode_decoder<char32_t, DecodingFailure>
+struct safe_unicode_decoder<char32_t, DecodingFailure> : decoder_helper<char32_t>
 {
-    using code_unit = char32_t;
-
     template <typename Iterator>
-    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
     {
-        if (current == end) {
-            next = current;
-            return DecodingFailure;
-        }
+        assert(current != end);
 
-        code_unit cu = *current;
-        ++current;
-        next = current;
+        code_unit cu = fetch_and_advance(current, next);
 
         char32_t result = cu;
 
@@ -225,18 +218,12 @@ struct trusted_unicode_decoder
 };
 
 template <>
-struct trusted_unicode_decoder<char>
+struct trusted_unicode_decoder<char> : decoder_helper<unsigned char>
 {
-    using code_unit = char;
-
     template <typename Iterator>
-    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
     {
-        assert(current != end);
-
-        code_unit cu = *current;
-        ++current;
-        next = current;
+        code_unit cu = fetch_and_advance(current, next);
 
         int remaining_code_length = 0;
 
@@ -261,9 +248,7 @@ struct trusted_unicode_decoder<char>
         assert(remaining_code_length < 4); // ASSUME
 
         while (remaining_code_length > 0) {
-            cu = *current;
-            ++current;
-            next = current;
+            cu = fetch_and_advance(current, next);
 
             result <<= 6;
             result |= (cu & 0x3f);
@@ -277,24 +262,17 @@ struct trusted_unicode_decoder<char>
 };
 
 template <>
-struct trusted_unicode_decoder<char16_t>
+struct trusted_unicode_decoder<char16_t> : decoder_helper<char16_t>
 {
-    using code_unit = char16_t;
-
     template <typename Iterator>
-    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
     {
-        assert(current != end);
-        code_unit cu = *current;
-        ++current;
-        next = current;
+        code_unit cu = fetch_and_advance(current, next);
 
         char32_t result = cu;
 
         if (is_high_surrogate(cu)) { // UNLIKELY
-            cu = *current;
-            ++current;
-            next = current;
+            cu = fetch_and_advance(current, next);
 
             result <<= 10;
             result += cu;
@@ -306,18 +284,12 @@ struct trusted_unicode_decoder<char16_t>
 };
 
 template <>
-struct trusted_unicode_decoder<char32_t>
+struct trusted_unicode_decoder<char32_t> : decoder_helper<char32_t>
 {
-    using code_unit = char32_t;
-
     template <typename Iterator>
-    static constexpr char32_t advance(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
     {
-        assert(current != end);
-
-        code_unit cu = *current;
-        ++current;
-        next = current;
+        code_unit cu = fetch_and_advance(current, next);
 
         char32_t result = cu;
         return result;
@@ -363,13 +335,17 @@ public:
             , m_next()
             , m_value()
         {
-            m_value = UnicodeDecoder::advance(m_pos, m_end, m_next);
+            if (m_pos != m_end) {
+                m_value = UnicodeDecoder::next_code_point(m_pos, m_end, m_next);
+            }
         }
 
         constexpr iterator &operator++()
         {
             m_pos = m_next;
-            m_value = UnicodeDecoder::advance(m_pos, m_end, m_next);
+            if (m_pos != m_end) {
+                m_value = UnicodeDecoder::next_code_point(m_pos, m_end, m_next);
+            }
             return *this;
         }
 
