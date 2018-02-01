@@ -117,8 +117,10 @@ public:
         char32_t minimum_code_point = 0; // to detect overlong sequences
 
         if (cu < 0x80) { // TODO: LIKELY
-            // TODO: this can be optimized further. no need of extra checks below, just return out right
-            remaining_code_length = 0;
+            // all the checks etc. below don't apply in this case; since it's the most common one
+            // (US-ASCII) try to optimize it out
+            char32_t result = cu;
+            return result;
         } else if (cu < 0xC0) {
             // unexpected continuation byte, error
             assert(is_continuation(cu));
@@ -149,7 +151,7 @@ public:
         char32_t result = cu;
 
         // TODO: hoping that the compiler can unroll this, given that remaining_code_length is in a short range.
-        assert(remaining_code_length >= 0); // ASSUME
+        assert(remaining_code_length > 0); // ASSUME
         assert(remaining_code_length < 4); // ASSUME
 
         while (remaining_code_length > 0) {
