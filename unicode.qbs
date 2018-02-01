@@ -28,4 +28,15 @@ Project {
             "benchmark.cpp"
         ]
     }
+
+    CppApplication {
+        name: "test"
+        consoleApplication: true
+        cpp.cxxLanguageVersion: "c++14"
+        cpp.includePaths: [ "3rdparty" ]
+        files: [
+            "unicode_view",
+            "test.cpp"
+        ]
+    }
 }
