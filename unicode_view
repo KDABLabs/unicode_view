@@ -18,6 +18,15 @@ template <typename Iterator>
 struct IsInputIterator : std::is_base_of<std::input_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>
 {};
 
+template <typename Iterator>
+struct IsExactlyInputIterator : std::is_same<std::input_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>
+{};
+
+template <typename Iterator>
+struct IsForwardIterator : std::is_base_of<std::forward_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>
+{};
+
+
 // Is Iterator suitable for iterating over Unicode code units?
 template <typename Iterator>
 struct IsUnicodeCodeUnitIterator : std::integral_constant<bool,
@@ -74,11 +83,29 @@ struct safe_unicode_decoder
 template <char32_t DecodingFailure>
 struct safe_unicode_decoder<char, DecodingFailure> : decoder_helper<unsigned char>
 {
+private:
     static constexpr bool is_continuation(code_unit c)
     {
         return (c & 0xC0) == 0x80;
     }
 
+    // check that the iterator has enough characters. only works with forward iterators
+    // so we need a bit of care here.
+    template <typename Iterator>
+    static constexpr bool check_minimum_distance(const Iterator &begin, const Iterator &end, typename std::iterator_traits<Iterator>::difference_type, std::input_iterator_tag)
+    {
+        static_assert(IsExactlyInputIterator<Iterator>::value, "Internal error -- expected input iterator");
+        return true;
+    }
+
+    template <typename Iterator>
+    static constexpr bool check_minimum_distance(const Iterator &begin, const Iterator &end, typename std::iterator_traits<Iterator>::difference_type d, std::forward_iterator_tag)
+    {
+        static_assert(IsForwardIterator<Iterator>::value, "Internal error -- expected forward iterator");
+        return std::distance(begin, end) >= d;
+    }
+
+public:
     template <typename Iterator>
     static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next) // TODO need to review exception safety...
     {
@@ -113,8 +140,11 @@ struct safe_unicode_decoder<char, DecodingFailure> : decoder_helper<unsigned cha
             return DecodingFailure;
         }
 
-        // TODO: add early check that we have enough, from current to end,
+        // check that we have enough, from current to end,
         // if the iterator allows for that (forward iterators)
+        if (!check_minimum_distance(current, end, remaining_code_length, typename std::iterator_traits<Iterator>::iterator_category())) {
+            return DecodingFailure;
+        }
 
         char32_t result = cu;
 
@@ -221,7 +251,7 @@ template <>
 struct trusted_unicode_decoder<char> : decoder_helper<unsigned char>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator, Iterator &next)
     {
         code_unit cu = fetch_and_advance(current, next);
 
@@ -265,7 +295,7 @@ template <>
 struct trusted_unicode_decoder<char16_t> : decoder_helper<char16_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator, Iterator &next)
     {
         code_unit cu = fetch_and_advance(current, next);
 
@@ -287,9 +317,11 @@ template <>
 struct trusted_unicode_decoder<char32_t> : decoder_helper<char32_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(const Iterator &current, Iterator, Iterator &next)
     {
-        code_unit cu = fetch_and_advance(current, next);
+        code_unit cu = *current;
+        next = current;
+        ++next;
 
         char32_t result = cu;
         return result;
