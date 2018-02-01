@@ -408,6 +408,19 @@ public:
         }
 
     private:
+        // Decisions, decisions: in the current scheme we use m_next to
+        // remember where to go when advancing the iterator; m_value always
+        // contains the code point decoded at position m_pos (gets decoded in
+        // the ctor and in operator++). However, by doing this, if *m_pos
+        // changes, we won't see the change; IOW we're enforcing that any
+        // mutation on the range the view is acting upon yields undefined
+        // behavior.
+        //
+        // As an alternative way, we could decode at every operator* and/or or
+        // at every operator++ (with some mechanism to avoid decoding twice, if
+        // possible; but that would mean that e.g. operator* above changes this
+        // object).
+
         Iterator m_pos;
         Iterator m_end;
         Iterator m_next;
