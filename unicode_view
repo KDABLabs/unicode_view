@@ -3,7 +3,6 @@
 
 #include <utility>
 #include <memory>
-#include <algorithm>
 #include <cstdint>
 #include <iterator>
 #include <type_traits>
@@ -92,14 +91,14 @@ private:
     // check that the iterator has enough characters. only works with forward iterators
     // so we need a bit of care here.
     template <typename Iterator>
-    static constexpr bool check_minimum_distance(const Iterator &begin, const Iterator &end, typename std::iterator_traits<Iterator>::difference_type, std::input_iterator_tag)
+    static constexpr bool check_minimum_distance(Iterator begin, Iterator end, typename std::iterator_traits<Iterator>::difference_type, std::input_iterator_tag)
     {
         static_assert(IsExactlyInputIterator<Iterator>::value, "Internal error -- expected input iterator");
         return true;
     }
 
     template <typename Iterator>
-    static constexpr bool check_minimum_distance(const Iterator &begin, const Iterator &end, typename std::iterator_traits<Iterator>::difference_type d, std::forward_iterator_tag)
+    static constexpr bool check_minimum_distance(Iterator begin, Iterator end, typename std::iterator_traits<Iterator>::difference_type d, std::forward_iterator_tag)
     {
         static_assert(IsForwardIterator<Iterator>::value, "Internal error -- expected forward iterator");
         return std::distance(begin, end) >= d;
@@ -107,7 +106,7 @@ private:
 
 public:
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, const Iterator &end, Iterator &next) // TODO need to review exception safety...
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next) // TODO need to review exception safety...
     {
         assert(current != end);
 
@@ -188,7 +187,7 @@ template <char32_t DecodingFailure>
 struct safe_unicode_decoder<char16_t, DecodingFailure> : decoder_helper<char16_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, const Iterator &end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
     {
         assert(current != end);
 
@@ -228,7 +227,7 @@ template <char32_t DecodingFailure>
 struct safe_unicode_decoder<char32_t, DecodingFailure> : decoder_helper<char32_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, const Iterator &end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
     {
         assert(current != end);
         (void)end; // UNUSED
@@ -254,7 +253,7 @@ template <>
 struct trusted_unicode_decoder<char> : decoder_helper<unsigned char>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, const Iterator &, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator, Iterator &next)
     {
         code_unit cu = fetch_and_advance(current, next);
 
@@ -298,7 +297,7 @@ template <>
 struct trusted_unicode_decoder<char16_t> : decoder_helper<char16_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, const Iterator &, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator, Iterator &next)
     {
         code_unit cu = fetch_and_advance(current, next);
 
@@ -320,7 +319,7 @@ template <>
 struct trusted_unicode_decoder<char32_t> : decoder_helper<char32_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(const Iterator &current, const Iterator &, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, Iterator, Iterator &next)
     {
         code_unit cu = *current;
         next = current;
@@ -442,19 +441,19 @@ private:
 };
 
 template <typename UnicodeDecoder, typename Iterator>
-auto make_unicode_view(const Iterator &begin, const Iterator &end)
+auto make_unicode_view(Iterator begin, Iterator end)
 {
     return unicode_view<UnicodeDecoder, Iterator>(begin, end);
 }
 
 template <typename Iterator>
-auto make_safe_unicode_view(const Iterator &begin, const Iterator &end)
+auto make_safe_unicode_view(Iterator begin, Iterator end)
 {
     return make_unicode_view<detail::safe_unicode_decoder<typename std::iterator_traits<Iterator>::value_type, detail::default_replacement_character>>(begin, end);
 }
 
 template <typename Iterator>
-auto make_trusted_unicode_view(const Iterator &begin, const Iterator &end)
+auto make_trusted_unicode_view(Iterator begin, Iterator end)
 {
     return make_unicode_view<detail::trusted_unicode_decoder<typename std::iterator_traits<Iterator>::value_type>>(begin, end);
 }
