@@ -107,7 +107,7 @@ private:
 
 public:
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next) // TODO need to review exception safety...
+    static constexpr char32_t next_code_point(Iterator current, const Iterator &end, Iterator &next) // TODO need to review exception safety...
     {
         assert(current != end);
 
@@ -188,7 +188,7 @@ template <char32_t DecodingFailure>
 struct safe_unicode_decoder<char16_t, DecodingFailure> : decoder_helper<char16_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, const Iterator &end, Iterator &next)
     {
         assert(current != end);
 
@@ -228,9 +228,10 @@ template <char32_t DecodingFailure>
 struct safe_unicode_decoder<char32_t, DecodingFailure> : decoder_helper<char32_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator end, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, const Iterator &end, Iterator &next)
     {
         assert(current != end);
+        (void)end; // UNUSED
 
         code_unit cu = fetch_and_advance(current, next);
 
@@ -253,7 +254,7 @@ template <>
 struct trusted_unicode_decoder<char> : decoder_helper<unsigned char>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, const Iterator &, Iterator &next)
     {
         code_unit cu = fetch_and_advance(current, next);
 
@@ -297,7 +298,7 @@ template <>
 struct trusted_unicode_decoder<char16_t> : decoder_helper<char16_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(Iterator current, Iterator, Iterator &next)
+    static constexpr char32_t next_code_point(Iterator current, const Iterator &, Iterator &next)
     {
         code_unit cu = fetch_and_advance(current, next);
 
@@ -319,7 +320,7 @@ template <>
 struct trusted_unicode_decoder<char32_t> : decoder_helper<char32_t>
 {
     template <typename Iterator>
-    static constexpr char32_t next_code_point(const Iterator &current, Iterator, Iterator &next)
+    static constexpr char32_t next_code_point(const Iterator &current, const Iterator &, Iterator &next)
     {
         code_unit cu = *current;
         next = current;
