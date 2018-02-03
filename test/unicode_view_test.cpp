@@ -1,8 +1,6 @@
-#include "unicode_view"
-
+#include <unicode_view>
 #include <algorithm>
 
-#define CATCH_CONFIG_MAIN
 #include <catch.hpp>
 
 TEST_CASE("unicode_view")

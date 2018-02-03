@@ -33,10 +33,11 @@ Project {
         name: "test"
         consoleApplication: true
         cpp.cxxLanguageVersion: "c++14"
-        cpp.includePaths: [ "3rdparty" ]
+        cpp.includePaths: [ ".", "3rdparty" ]
         files: [
             "unicode_view",
-            "test.cpp"
+            "test/unicode_view_test.cpp",
+            "test/test_main.cpp"
         ]
     }
 }
